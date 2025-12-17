@@ -1,0 +1,41 @@
+.usage-history h2 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 1.8em;
+}
+
+.usage-form {
+  margin-bottom: 20px;
+}
+
+.usage-results {
+  margin-top: 20px;
+}
+
+.usage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.usage-item {
+  background: #f9f9f9;
+  border-left: 4px solid #667eea;
+  padding: 15px;
+  border-radius: 5px;
+}
+
+.usage-field {
+  margin-bottom: 8px;
+}
+
+.usage-field:last-child {
+  margin-bottom: 0;
+}
+
+.usage-field strong {
+  color: #667eea;
+  margin-right: 5px;
+}
+
+

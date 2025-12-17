@@ -1,0 +1,59 @@
+.question-card {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 20px;
+  transition: all 0.3s;
+}
+
+.question-card:hover {
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.question-text {
+  font-size: 1.1em;
+  color: #333;
+  margin-bottom: 15px;
+  line-height: 1.6;
+}
+
+.similarity-badge {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 0.85em;
+  font-weight: 600;
+  margin-left: 10px;
+}
+
+.badge-exact {
+  background: #dc3545;
+  color: white;
+}
+
+.badge-similar {
+  background: #ffc107;
+  color: #333;
+}
+
+.question-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+}
+
+.meta-label {
+  font-weight: 600;
+  margin-right: 5px;
+  color: #555;
+}
+
+

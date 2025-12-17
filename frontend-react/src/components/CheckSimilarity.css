@@ -1,0 +1,21 @@
+.check-similarity h2 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 1.8em;
+}
+
+.similarity-form {
+  margin-bottom: 20px;
+}
+
+.similar-questions-list {
+  margin-top: 20px;
+}
+
+.similar-questions-list h3 {
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 1.3em;
+}
+
+

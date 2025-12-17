@@ -1,0 +1,41 @@
+.search-questions h2 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 1.8em;
+}
+
+.search-form {
+  margin-bottom: 20px;
+}
+
+.search-results {
+  margin-top: 20px;
+}
+
+.results-count {
+  margin-bottom: 15px;
+  color: #666;
+  font-size: 1.1em;
+}
+
+.questions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.result-message.info {
+  background: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #bee5eb;
+  padding: 15px;
+  border-radius: 5px;
+}
+
+
