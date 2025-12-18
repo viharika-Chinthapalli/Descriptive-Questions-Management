@@ -161,3 +161,57 @@ def test_health_check(client):
     assert response.json()["status"] == "healthy"
 
 
+def test_get_usage_by_question_text(client, db_session):
+    """Test getting usage by question text via API."""
+    from app.services.similarity_service import generate_hash, generate_embedding
+    
+    # Create a question
+    question = Question(
+        question_text="What is Python programming language?",
+        question_hash=generate_hash("What is Python programming language?"),
+        subject="CS",
+        difficulty_level="Easy",
+        marks=5,
+        exam_type="Mid",
+        college="Test College",
+        embedding=generate_embedding("What is Python programming language?"),
+        status="Active",
+        usage_count=1,
+    )
+    db_session.add(question)
+    db_session.commit()
+    
+    # Get usage by question text
+    response = client.get(
+        "/api/questions/usage-by-text",
+        params={"question_text": "What is Python programming language?"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["usage_count"] == 1
+    assert len(data["question_ids"]) == 1
+    assert question.id in data["question_ids"]
+
+
+def test_get_usage_by_question_text_not_found(client):
+    """Test getting usage for non-existent question text."""
+    response = client.get(
+        "/api/questions/usage-by-text",
+        params={"question_text": "This question does not exist in the database"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["usage_count"] == 0
+    assert len(data["question_ids"]) == 0
+    assert len(data["usage_history"]) == 0
+
+
+def test_get_usage_by_question_text_invalid(client):
+    """Test getting usage with invalid question text (too short)."""
+    response = client.get(
+        "/api/questions/usage-by-text",
+        params={"question_text": "Short"}
+    )
+    assert response.status_code == 422  # Validation error
+
+

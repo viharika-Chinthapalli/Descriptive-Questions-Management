@@ -1,52 +1,62 @@
-import { useState } from 'react'
-import { questionAPI } from '../services/api'
-import QuestionCard from './QuestionCard'
-import './SearchQuestions.css'
+import { useState } from "react";
+import { questionAPI } from "../services/api";
+import QuestionCard from "./QuestionCard";
+import "./SearchQuestions.css";
 
 function SearchQuestions() {
   const [filters, setFilters] = useState({
-    search_text: '',
-    subject: '',
-    exam_type: '',
-    college: '',
-  })
-  const [questions, setQuestions] = useState([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [searched, setSearched] = useState(false)
+    search_text: "",
+    subject: "",
+    exam_type: "",
+    college: "",
+  });
+  const [questions, setQuestions] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
 
   const handleChange = (e) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     setFilters((prev) => ({
       ...prev,
       [name]: value,
-    }))
-  }
+    }));
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setSearched(true)
+    e.preventDefault();
+    setLoading(true);
+    setSearched(true);
 
     try {
       const params = {
         limit: 50,
         ...Object.fromEntries(
-          Object.entries(filters).filter(([_, v]) => v.trim() !== '')
+          Object.entries(filters).filter(([_, v]) => v.trim() !== "")
         ),
-      }
+      };
 
-      const data = await questionAPI.getAll(params)
-      setQuestions(data.questions || [])
-      setTotal(data.total || 0)
+      const data = await questionAPI.getAll(params);
+      setQuestions(data.questions || []);
+      setTotal(data.total || 0);
     } catch (error) {
-      console.error('Search error:', error)
-      setQuestions([])
-      setTotal(0)
+      console.error("Search error:", error);
+      setQuestions([]);
+      setTotal(0);
+      // Show user-friendly error message
+      if (error.response?.status === 500) {
+        alert(
+          "Database connection error. Please check if Supabase is configured correctly."
+        );
+      } else if (error.response?.data?.detail) {
+        alert(`Error: ${error.response.data.detail}`);
+      } else if (error.message) {
+        alert(`Error: ${error.message}`);
+      }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="search-questions">
@@ -101,7 +111,7 @@ function SearchQuestions() {
           </div>
         </div>
         <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? 'Searching...' : 'Search'}
+          {loading ? "Searching..." : "Search"}
         </button>
       </form>
 
@@ -124,8 +134,7 @@ function SearchQuestions() {
         </div>
       )}
     </div>
-  )
+  );
 }
 
-export default SearchQuestions
-
+export default SearchQuestions;

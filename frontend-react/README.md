@@ -95,3 +95,5 @@ The frontend communicates with the backend API through the `api.js` service laye
 Modern browsers that support ES6+ features.
 
 
+
+

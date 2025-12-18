@@ -1,51 +1,69 @@
-import { useState } from 'react'
-import { questionAPI } from '../services/api'
-import QuestionCard from './QuestionCard'
-import './CheckSimilarity.css'
+import { useState } from "react";
+import { questionAPI } from "../services/api";
+import QuestionCard from "./QuestionCard";
+import "./CheckSimilarity.css";
 
 function CheckSimilarity() {
-  const [questionText, setQuestionText] = useState('')
-  const [result, setResult] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [questionText, setQuestionText] = useState("");
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!questionText.trim() || questionText.trim().length < 10) {
       setResult({
-        type: 'error',
-        message: 'Question text must be at least 10 characters long.',
+        type: "error",
+        message: "Question text must be at least 10 characters long.",
         similarQuestions: [],
-      })
-      return
+      });
+      return;
     }
 
-    setLoading(true)
-    setResult(null)
+    setLoading(true);
+    setResult(null);
 
     try {
-      const data = await questionAPI.checkSimilarity(questionText)
+      const data = await questionAPI.checkSimilarity(questionText);
       setResult({
-        type: data.is_duplicate ? 'error' : 'success',
+        type: data.is_duplicate ? "error" : "success",
         message: data.is_duplicate
           ? data.exact_match
-            ? '⚠️ Exact duplicate found! This question already exists.'
+            ? "⚠️ Exact duplicate found! This question already exists."
             : `⚠️ Similar questions found (${data.similar_questions.length} matches above threshold)!`
-          : '✓ No duplicates found. This question is unique.',
+          : "✓ No duplicates found. This question is unique.",
         similarQuestions: data.similar_questions || [],
         similarityScores: data.similarity_scores || [],
         exactMatch: data.exact_match,
-      })
+      });
     } catch (error) {
+      let errorMessage = "Failed to check similarity";
+
+      if (!error.response) {
+        if (
+          error.message?.includes("Network Error") ||
+          error.message?.includes("Failed to fetch")
+        ) {
+          errorMessage =
+            "Cannot connect to server. Please make sure the backend is running.";
+        } else {
+          errorMessage = `Network error: ${error.message}`;
+        }
+      } else if (error.response?.status === 500) {
+        errorMessage =
+          "Server error: Database connection failed. Please check Supabase configuration.";
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+
       setResult({
-        type: 'error',
-        message:
-          error.response?.data?.detail || 'Failed to check similarity',
+        type: "error",
+        message: errorMessage,
         similarQuestions: [],
-      })
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="check-similarity">
@@ -66,13 +84,15 @@ function CheckSimilarity() {
           />
         </div>
         <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? 'Checking...' : 'Check Similarity'}
+          {loading ? "Checking..." : "Check Similarity"}
         </button>
       </form>
 
       {result && (
         <>
-          <div className={`result-message ${result.type}`}>{result.message}</div>
+          <div className={`result-message ${result.type}`}>
+            {result.message}
+          </div>
           {result.similarQuestions && result.similarQuestions.length > 0 && (
             <div className="similar-questions-list">
               <h3>Similar Questions:</h3>
@@ -88,9 +108,7 @@ function CheckSimilarity() {
         </>
       )}
     </div>
-  )
+  );
 }
 
-export default CheckSimilarity
-
-
+export default CheckSimilarity;

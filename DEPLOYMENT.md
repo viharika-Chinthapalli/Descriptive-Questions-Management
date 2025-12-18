@@ -287,3 +287,5 @@ For local network deployment, the database stays on your PC. For cloud deploymen
 - **Enterprise**: Use Option 3 (Docker) or Option 2B (VPS)
 
 
+
+

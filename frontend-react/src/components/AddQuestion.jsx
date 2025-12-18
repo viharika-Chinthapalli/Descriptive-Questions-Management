@@ -90,7 +90,30 @@ function AddQuestion() {
       })
     } catch (error) {
       let errorMessage = 'Failed to add question'
-      if (error.response?.data) {
+      
+      // Handle network errors
+      if (!error.response) {
+        if (error.code === 'ECONNABORTED') {
+          errorMessage = 'Request timeout. Please check your connection and try again.'
+        } else if (error.message?.includes('Network Error') || error.message?.includes('Failed to fetch')) {
+          errorMessage = 'Cannot connect to server. Please make sure the backend is running on http://localhost:8000'
+        } else {
+          errorMessage = `Network error: ${error.message}`
+        }
+      } else if (error.response?.status === 503) {
+        // Service unavailable - database connection error
+        const errorData = error.response.data
+        if (errorData?.detail?.message) {
+          errorMessage = errorData.detail.message
+          if (errorData.detail.hint) {
+            errorMessage += `\n\nHint: ${errorData.detail.hint}`
+          }
+        } else {
+          errorMessage = 'Database connection error. Please check Supabase configuration.'
+        }
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error occurred. Please check the backend logs.'
+      } else if (error.response?.data) {
         const errorData = error.response.data
         if (errorData.errors && Array.isArray(errorData.errors)) {
           const errorDetails = errorData.errors
@@ -110,9 +133,14 @@ function AddQuestion() {
                 return `${field}: ${e.msg}`
               })
               .join('\n')
+          } else if (errorData.detail.message) {
+            errorMessage = errorData.detail.message
           }
         }
+      } else if (error.message) {
+        errorMessage = error.message
       }
+      
       setResult({ type: 'error', message: errorMessage })
     } finally {
       setLoading(false)

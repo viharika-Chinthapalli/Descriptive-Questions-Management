@@ -180,9 +180,9 @@ def test_record_question_usage(db_session: Session):
     assert usage.question_id == question.id
     assert usage.exam_name == "Final Exam 2024"
     
-        # Verify question usage count increased (was 1, now 2 after recording usage)
-        updated_question = question_service.get_question(db_session, question.id)
-        assert updated_question.usage_count == 2
+    # Verify question usage count increased (was 1, now 2 after recording usage)
+    updated_question = question_service.get_question(db_session, question.id)
+    assert updated_question.usage_count == 2
     assert updated_question.last_used_date is not None
 
 
@@ -293,7 +293,7 @@ def test_cannot_add_duplicate_in_same_college(db_session: Session):
     
     # Verify error details
     error = exc_info.value
-    assert "already exists in college" in str(error).lower()
+    assert "question already exists" in str(error).lower() or "already exists" in str(error).lower()
     assert error.detail["code"] == "DUPLICATE_QUESTION_SAME_COLLEGE"
     assert error.detail["college"] == "College A"
     assert error.detail["existing_question_id"] == question1.id
@@ -301,5 +301,83 @@ def test_cannot_add_duplicate_in_same_college(db_session: Session):
     # Verify usage count was not incremented
     db_session.refresh(question1)
     assert question1.usage_count == original_usage_count
+
+
+def test_get_usage_by_question_text(db_session: Session):
+    """Test getting usage count and history by question text."""
+    # Create a question in College A
+    question_data_a = QuestionCreate(
+        question_text="What is machine learning?",
+        subject="CS",
+        difficulty_level="Medium",
+        marks=10,
+        exam_type="End-Sem",
+        college="College A",
+    )
+    question_a = question_service.create_question(db_session, question_data_a)
+    assert question_a.usage_count == 1
+    
+    # Get usage by question text
+    usage_data = question_service.get_usage_by_question_text(
+        db_session, "What is machine learning?"
+    )
+    
+    assert usage_data["usage_count"] == 1
+    assert len(usage_data["question_ids"]) == 1
+    assert question_a.id in usage_data["question_ids"]
+    assert len(usage_data["questions"]) == 1
+    assert len(usage_data["usage_history"]) == 0  # No usage recorded yet
+    
+    # Add the same question to College B
+    question_data_b = QuestionCreate(
+        question_text="What is machine learning?",
+        subject="CS",
+        difficulty_level="Medium",
+        marks=10,
+        exam_type="End-Sem",
+        college="College B",
+    )
+    question_b = question_service.create_question(db_session, question_data_b)
+    
+    # Get usage again - should now show count of 2
+    usage_data = question_service.get_usage_by_question_text(
+        db_session, "What is machine learning?"
+    )
+    
+    assert usage_data["usage_count"] == 2
+    assert len(usage_data["question_ids"]) == 2
+    assert question_a.id in usage_data["question_ids"]
+    assert question_b.id in usage_data["question_ids"]
+    assert len(usage_data["questions"]) == 2
+    
+    # Record usage for one of the questions
+    usage_data_record = QuestionUsageCreate(
+        exam_name="Final Exam 2024",
+        exam_type="End-Sem",
+        academic_year="2023-24",
+        college="College A",
+    )
+    question_service.record_question_usage(db_session, question_a.id, usage_data_record)
+    
+    # Get usage again - should show usage history
+    usage_data = question_service.get_usage_by_question_text(
+        db_session, "What is machine learning?"
+    )
+    
+    assert usage_data["usage_count"] == 3  # 2 from creation + 1 from recording
+    assert len(usage_data["usage_history"]) == 1
+    assert usage_data["usage_history"][0].exam_name == "Final Exam 2024"
+
+
+def test_get_usage_by_question_text_not_found(db_session: Session):
+    """Test getting usage for a question that doesn't exist."""
+    usage_data = question_service.get_usage_by_question_text(
+        db_session, "This question does not exist in the database"
+    )
+    
+    assert usage_data["usage_count"] == 0
+    assert len(usage_data["question_ids"]) == 0
+    assert len(usage_data["questions"]) == 0
+    assert len(usage_data["usage_history"]) == 0
 
 

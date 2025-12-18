@@ -27,10 +27,12 @@ class DuplicateQuestionError(ValueError):
 def create_question(db: Session, question: QuestionCreate) -> Question:
     """
     Create a new question in the database.
-    Checks for duplicates within the same college before creating.
-    If an exact duplicate exists for the same college, increment usage_count
-    instead of creating a new record.
-
+    
+    Duplicate Detection Rules:
+    1. Same question, same college → Raises error: "Question already exists"
+    2. Same question, different college → Allows creation, sets usage_count to
+       the total number of times this question has been added across all colleges
+    
     Args:
         db (Session): Database session.
         question (QuestionCreate): Question data.
@@ -39,7 +41,7 @@ def create_question(db: Session, question: QuestionCreate) -> Question:
         Question: Created question object.
 
     Raises:
-        ValueError: If duplicate question found in the same college.
+        DuplicateQuestionError: If duplicate question found in the same college.
     """
     # Check for existing exact matches (any college)
     question_hash = generate_hash(question.question_text)
@@ -58,12 +60,10 @@ def create_question(db: Session, question: QuestionCreate) -> Question:
     )
     if existing_same_college:
         raise DuplicateQuestionError(
-            message=(
-                f"Question already exists in college '{question.college}'. "
-                f"Please use the existing question (ID: {existing_same_college.id}) or modify your question text."
-            ),
+            message="Question already exists",
             detail={
                 "code": "DUPLICATE_QUESTION_SAME_COLLEGE",
+                "message": "Question already exists",
                 "college": question.college,
                 "existing_question_id": existing_same_college.id,
             },
@@ -71,9 +71,12 @@ def create_question(db: Session, question: QuestionCreate) -> Question:
 
     # If exact matches exist in other colleges, synchronize usage_count across all
     if existing_exact_all:
-        # New total usage is number of exact matches (including the new one)
+        # When the same question is added to another college, usage_count should
+        # represent how many times this question has been added in total
+        # (irrespective of college). This is:
+        #   existing_exact_all (current count) + 1 (this new insert).
         new_total_usage = len(existing_exact_all) + 1
-        # Update existing matches to reflect new total usage
+        # Update all existing matches to the new total usage count
         for q in existing_exact_all:
             q.usage_count = new_total_usage
         db.flush()  # stage updates before adding new question
@@ -104,6 +107,11 @@ def create_question(db: Session, question: QuestionCreate) -> Question:
     # Generate hash and embedding
     embedding = generate_embedding(question.question_text)
     
+    # Set usage_count:
+    # - If this is the first time the question is added anywhere: 1
+    # - If it already exists in other colleges: total number of occurrences
+    usage_count = len(existing_exact_all) + 1 if existing_exact_all else 1
+    
     db_question = Question(
         question_text=question.question_text,
         question_hash=question_hash,
@@ -115,7 +123,7 @@ def create_question(db: Session, question: QuestionCreate) -> Question:
         college=question.college,
         embedding=embedding,
         status="Active",
-        usage_count=len(existing_exact_all) + 1 if existing_exact_all else 1,
+        usage_count=usage_count,
     )
     
     db.add(db_question)
@@ -287,6 +295,50 @@ def record_question_usage(db: Session, question_id: int, usage: QuestionUsageCre
     return db_usage
 
 
+def record_question_usage_by_text(
+    db: Session,
+    question_text: str,
+    usage: QuestionUsageCreate,
+) -> QuestionUsage:
+    """
+    Record question usage using question text instead of explicit question ID.
+
+    This function:
+    - Finds all active questions that exactly match the given text (across colleges)
+      using the same hash logic as get_usage_by_question_text.
+    - Records usage for the first matching question.
+
+    Args:
+        db (Session): Database session.
+        question_text (str): Question text to match.
+        usage (QuestionUsageCreate): Usage information.
+
+    Returns:
+        QuestionUsage: Created usage record.
+
+    Raises:
+        ValueError: If no matching question is found for the given text.
+    """
+    # Reuse the same matching logic as get_usage_by_question_text
+    question_hash = generate_hash(question_text)
+    matching_questions = (
+        db.query(Question)
+        .filter(
+            Question.question_hash == question_hash,
+            Question.status == "Active",
+        )
+        .all()
+    )
+
+    if not matching_questions:
+        raise ValueError("Question not found for the given text")
+
+    # Record usage for the first matching question
+    # Reason: Frontend only needs aggregated usage, and IDs are internal details.
+    primary_question = matching_questions[0]
+    return record_question_usage(db, primary_question.id, usage)
+
+
 def get_question_usage_history(db: Session, question_id: int) -> List[QuestionUsage]:
     """
     Get usage history for a question.
@@ -324,5 +376,91 @@ def check_question_duplicate(db: Session, question_text: str, exclude_id: Option
             - similar_questions: List of (question, similarity_score) tuples
     """
     return check_similarity(db, question_text, exclude_id=exclude_id, college=college)
+
+
+def get_usage_by_question_text(db: Session, question_text: str) -> Dict[str, Any]:
+    """
+    Get usage count and history for a question by its text.
+    Finds all questions with the same text (across all colleges) and aggregates their usage.
+
+    Args:
+        db (Session): Database session.
+        question_text (str): Question text to search for.
+
+    Returns:
+        Dict[str, Any]: Dictionary containing:
+            - usage_count: Total usage count across all matching questions
+            - question_text: The question text that was searched
+            - matching_questions_count: Number of matching questions
+            - usage_history: Combined usage history from all matching questions (with question_text)
+            - questions: List of matching question objects
+    """
+    # Generate hash to find exact matches
+    question_hash = generate_hash(question_text)
+    
+    # Find all questions with the same hash (same question text, any college)
+    matching_questions = (
+        db.query(Question)
+        .filter(
+            Question.question_hash == question_hash,
+            Question.status == "Active",
+        )
+        .all()
+    )
+    
+    if not matching_questions:
+        return {
+            "usage_count": 0,
+            "question_text": question_text,
+            "matching_questions_count": 0,
+            "usage_history": [],
+            "questions": [],
+        }
+    
+    # Get all question IDs for querying usage history
+    question_ids = [q.id for q in matching_questions]
+    
+    # Get combined usage history from all matching questions
+    all_usage_history = (
+        db.query(QuestionUsage)
+        .filter(QuestionUsage.question_id.in_(question_ids))
+        .order_by(QuestionUsage.date_used.desc())
+        .all()
+    )
+    
+    # Enrich usage history with question_text
+    # Reason: Frontend needs question text, not IDs, for display
+    enriched_usage_history = []
+    for usage in all_usage_history:
+        # Find the question for this usage record to get its text
+        usage_question = next(
+            (q for q in matching_questions if q.id == usage.question_id),
+            None
+        )
+        if usage_question:
+            # Create a dict with question_text added
+            usage_dict = {
+                "id": usage.id,
+                "question_id": usage.question_id,
+                "question_text": usage_question.question_text,
+                "exam_name": usage.exam_name,
+                "exam_type": usage.exam_type,
+                "academic_year": usage.academic_year,
+                "college": usage.college,
+                "date_used": usage.date_used,
+            }
+            enriched_usage_history.append(usage_dict)
+    
+    # Get usage count (should be the same for all matching questions due to synchronization)
+    # Use the first question's usage_count as they should all be synchronized
+    usage_count = matching_questions[0].usage_count if matching_questions else 0
+    
+    return {
+        "usage_count": usage_count,
+        "question_text": question_text,
+        "matching_questions_count": len(matching_questions),
+        "usage_history": enriched_usage_history,
+        "questions": matching_questions,
+    }
 
 

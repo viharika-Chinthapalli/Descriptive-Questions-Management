@@ -1,13 +1,15 @@
 # Question Bank Management System - POC Planning
 
 ## Project Overview
+
 A proof of concept (POC) system for managing descriptive exam questions from multiple colleges and assessment types. The system prevents duplicate question usage through exact matching and semantic similarity detection.
 
 ## Architecture
 
 ### Tech Stack
+
 - **Backend**: Python 3.9+ with FastAPI
-- **Database**: SQLite (for POC, easily upgradeable to PostgreSQL)
+- **Database**: PostgreSQL/Supabase (required)
 - **ORM**: SQLAlchemy
 - **Similarity Detection**: Sentence Transformers (sentence embeddings)
 - **Validation**: Pydantic
@@ -15,6 +17,7 @@ A proof of concept (POC) system for managing descriptive exam questions from mul
 - **Testing**: Pytest
 
 ### Project Structure
+
 ```
 Descriptive POC/
 ├── app/
@@ -49,6 +52,7 @@ Descriptive POC/
 ## Database Schema
 
 ### Questions Table
+
 - `id`: Primary key (auto-increment)
 - `question_text`: Text content of the question
 - `question_hash`: SHA256 hash for exact duplicate detection
@@ -65,6 +69,7 @@ Descriptive POC/
 - `embedding`: Vector embedding for similarity search (stored as JSON)
 
 ### Question Usage Table
+
 - `id`: Primary key
 - `question_id`: Foreign key to Questions
 - `exam_name`: Name of the exam
@@ -76,22 +81,26 @@ Descriptive POC/
 ## Core Features
 
 ### 1. Question Management
+
 - Add new questions with metadata
 - Update question details
 - Archive/block questions
 - View question history
 
 ### 2. Duplicate Detection
+
 - **Exact Match**: Hash-based detection for identical questions
 - **Similarity Match**: Embedding-based detection for rephrased questions
 - Configurable similarity threshold (default: 0.85)
 
 ### 3. Usage Tracking
+
 - Track when and where questions are used
 - Prevent accidental reuse based on configurable rules
 - Historical audit trail
 
 ### 4. Search & Filter
+
 - Search by text, subject, topic, college
 - Filter by exam type, difficulty, status
 - View usage history
@@ -106,17 +115,17 @@ Descriptive POC/
 3. **Performance**: Cache embeddings in database for faster comparison
 
 ## Rules Engine (Future Enhancement)
+
 - Prevent reuse within last N years
 - Prevent reuse in same college
 - Allow reuse if marks/difficulty differ significantly
 - Custom rules per college/exam type
 
 ## Code Style & Conventions
+
 - Follow PEP8
 - Use type hints for all functions
 - Google-style docstrings
 - Format with `black`
 - Maximum 500 lines per file
 - Modular, feature-based organization
-
-

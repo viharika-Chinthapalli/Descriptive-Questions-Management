@@ -2,9 +2,13 @@
 
 import uvicorn
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables from parent directory (project root)
+env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(env_path)
+# Also try loading from current directory for backward compatibility
 load_dotenv()
 
 if __name__ == "__main__":

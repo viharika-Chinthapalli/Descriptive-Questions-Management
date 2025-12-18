@@ -107,6 +107,30 @@ class QuestionUsageCreate(BaseModel):
     college: str = Field(..., min_length=1, description="College where question is used")
 
 
+class QuestionUsageByTextCreate(BaseModel):
+    """Schema for recording question usage by question text."""
+
+    question_text: str = Field(
+        ...,
+        min_length=10,
+        description="Question text to record usage for (text input, not numeric ID)"
+    )
+    exam_name: str = Field(..., min_length=1, description="Name of the exam")
+    exam_type: str = Field(..., description="Type of exam")
+    academic_year: str = Field(..., min_length=1, description="Academic year (e.g., 2023-24)")
+    college: str = Field(..., min_length=1, description="College where question is used")
+
+
+class QuestionUsageByTextRequest(BaseModel):
+    """Schema for requesting usage by question text."""
+
+    question_text: str = Field(
+        ...,
+        min_length=10,
+        description="Question text to get usage for (text input, not numeric ID)"
+    )
+
+
 class QuestionResponse(QuestionBase):
     """Schema for question response."""
 
@@ -125,7 +149,8 @@ class QuestionUsageResponse(BaseModel):
     """Schema for question usage response."""
 
     id: int
-    question_id: int
+    question_id: int  # Internal database reference only - not required for API usage
+    question_text: str  # Primary identifier for Question Usage History (text-based)
     exam_name: str
     exam_type: str
     academic_year: str
@@ -152,5 +177,18 @@ class QuestionSearchResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class QuestionUsageByTextResponse(BaseModel):
+    """Schema for usage information by question text."""
+
+    usage_count: int
+    question_text: str  # The question text that was searched
+    matching_questions_count: int  # Number of matching questions (replaces question_ids)
+    usage_history: List[QuestionUsageResponse]
+    questions: List[QuestionResponse]
+
+    class Config:
+        from_attributes = True
 
 

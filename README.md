@@ -5,47 +5,60 @@ A proof of concept (POC) system for managing descriptive exam questions from mul
 ## Features
 
 - **Question Management**: Add, update, search, and archive questions with comprehensive metadata
-- **Duplicate Detection**: 
+- **Duplicate Detection**:
   - Exact match detection using SHA256 hashing
   - Semantic similarity detection using sentence embeddings (catches rephrased questions)
 - **Usage Tracking**: Track when and where questions are used in exams
 - **Search & Filter**: Search questions by text, subject, topic, college, exam type, and more
-- **Web Interface**: Simple, modern HTML/CSS/JavaScript frontend
+- **Web Interface**: Modern React frontend with Vite
 - **RESTful API**: Complete FastAPI backend with OpenAPI documentation
 
 ## Tech Stack
 
 - **Backend**: Python 3.9+ with FastAPI
-- **Database**: SQLite (easily upgradeable to PostgreSQL)
+- **Database**: PostgreSQL/Supabase (required)
 - **ORM**: SQLAlchemy
 - **Similarity Detection**: Sentence Transformers (all-MiniLM-L6-v2)
 - **Validation**: Pydantic
 - **Testing**: Pytest
 
+### Database Configuration
+
+This application requires Supabase/PostgreSQL:
+
+- **Supabase**: Cloud PostgreSQL database (recommended)
+- **PostgreSQL**: Self-hosted PostgreSQL also supported
+- **Connection String**: Must be set in `.env` file as `DATABASE_URL`
+
 ## Project Structure
 
 ```
 Descriptive POC/
-├── app/
-│   ├── __init__.py
-│   ├── main.py                 # FastAPI application
-│   ├── database.py             # Database connection
-│   ├── models.py               # SQLAlchemy models
-│   ├── schemas.py              # Pydantic schemas
-│   ├── services/
-│   │   ├── question_service.py # Question CRUD operations
-│   │   └── similarity_service.py # Similarity detection
-│   └── api/
-│       └── routes.py           # API endpoints
-├── frontend/
-│   ├── index.html
-│   ├── styles.css
-│   └── app.js
-├── tests/
-│   ├── test_question_service.py
-│   ├── test_similarity_service.py
-│   └── test_api.py
-├── requirements.txt
+├── backend/
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py                 # FastAPI application
+│   │   ├── database.py             # Database connection
+│   │   ├── models.py               # SQLAlchemy models
+│   │   ├── schemas.py              # Pydantic schemas
+│   │   ├── services/
+│   │   │   ├── question_service.py # Question CRUD operations
+│   │   │   └── similarity_service.py # Similarity detection
+│   │   └── api/
+│   │       └── routes.py           # API endpoints
+│   ├── tests/
+│   │   ├── test_question_service.py
+│   │   ├── test_similarity_service.py
+│   │   └── test_api.py
+│   ├── run.py                      # Application runner
+│   └── requirements.txt
+├── frontend-react/                 # React frontend
+│   ├── src/
+│   │   ├── components/
+│   │   ├── services/
+│   │   └── App.jsx
+│   ├── package.json
+│   └── vite.config.js
 ├── PLANNING.md
 ├── TASK.md
 └── README.md
@@ -84,17 +97,27 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. **Set up environment variables (optional)**
+4. **Set up environment variables (required)**
 
-Create a `.env` file in the project root (or use defaults):
+Create a `.env` file in the project root:
 
 ```env
-DATABASE_URL=sqlite:///./question_bank.db
+# Database Configuration (REQUIRED)
+# Get your connection string from Supabase Dashboard -> Settings -> Database
+DATABASE_URL=postgresql://postgres:password@db.xxxxx.supabase.co:5432/postgres
+
+# Application Configuration
 SIMILARITY_THRESHOLD=0.85
 DEBUG=True
 HOST=0.0.0.0
 PORT=8000
 ```
+
+**Important**:
+
+- `DATABASE_URL` is **required** - the application will not start without it
+- Get your Supabase connection string from: Supabase Dashboard → Settings → Database
+- If your password contains special characters, they must be URL-encoded (@ becomes %40, etc.)
 
 5. **Initialize the database**
 
@@ -107,16 +130,30 @@ The database will be automatically created when you first run the application.
 Start the FastAPI backend:
 
 ```bash
+cd backend
 python run.py
 ```
 
 Or using uvicorn directly:
 
 ```bash
+cd backend
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+Or use the provided scripts from the project root:
+
+```bash
+# Windows PowerShell
+.\start_backend.ps1
+
+# Windows CMD / Linux / Mac
+.\start-backend-network.bat  # Windows
+./start-backend-network.sh   # Linux/Mac
+```
+
 The backend API will be available at:
+
 - **API Base URL**: http://localhost:8000
 - **API Documentation**: http://localhost:8000/docs
 - **Alternative API Docs**: http://localhost:8000/redoc
@@ -126,26 +163,24 @@ The backend API will be available at:
 #### Option 1: React + Vite Frontend (Recommended)
 
 1. Navigate to the React frontend directory:
+
 ```bash
 cd frontend-react
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Start the development server:
+
 ```bash
 npm run dev
 ```
 
 The React frontend will be available at http://localhost:3000
-
-#### Option 2: HTML/JavaScript Frontend
-
-The simple HTML frontend is served directly by the FastAPI backend at:
-- **Web Interface**: http://localhost:8000
 
 ## Usage
 
@@ -159,6 +194,7 @@ The simple HTML frontend is served directly by the FastAPI backend at:
 ### API Endpoints
 
 #### Create Question
+
 ```bash
 POST /api/questions
 Content-Type: application/json
@@ -175,16 +211,19 @@ Content-Type: application/json
 ```
 
 #### Check Similarity
+
 ```bash
 POST /api/questions/check-similarity?question_text=What is Python?
 ```
 
 #### Get Questions
+
 ```bash
 GET /api/questions?subject=CS&exam_type=Mid&limit=10
 ```
 
 #### Record Usage
+
 ```bash
 POST /api/questions/{question_id}/usage
 Content-Type: application/json
@@ -216,6 +255,7 @@ pytest --cov=app --cov-report=html
 ## Database Schema
 
 ### Questions Table
+
 - `id`: Primary key
 - `question_text`: Question content
 - `question_hash`: SHA256 hash for exact duplicate detection
@@ -232,6 +272,7 @@ pytest --cov=app --cov-report=html
 - `embedding`: Vector embedding for similarity search
 
 ### Question Usage Table
+
 - `id`: Primary key
 - `question_id`: Foreign key to Questions
 - `exam_name`: Name of exam
@@ -254,7 +295,7 @@ The system uses a two-tier approach:
 
 ### Environment Variables
 
-- `DATABASE_URL`: Database connection string (default: `sqlite:///./question_bank.db`)
+- `DATABASE_URL`: Supabase/PostgreSQL connection string (required)
 - `SIMILARITY_THRESHOLD`: Similarity threshold 0.0-1.0 (default: `0.85`)
 - `DEBUG`: Enable debug mode (default: `True`)
 - `HOST`: Server host (default: `0.0.0.0`)
@@ -293,6 +334,7 @@ The system uses a two-tier approach:
 To make the application accessible to multiple users on different laptops, see [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
 
 **Quick Setup (Local Network)**:
+
 1. Find your PC's IP address (run `get-ip-address.bat` on Windows or `get-ip-address.sh` on Linux/Mac)
 2. Start the backend with `start-backend-network.bat` (or `.sh`)
 3. Each user runs `setup-user.bat` (or `.sh`) and enters your IP address
@@ -301,24 +343,31 @@ To make the application accessible to multiple users on different laptops, see [
 ## Troubleshooting
 
 ### Database Issues
+
 - Delete `question_bank.db` to reset the database
 - Check database file permissions
 
 ### Similarity Detection Slow
+
 - First run downloads the model (~80MB)
 - Subsequent runs use cached model
 - Consider using GPU for faster embeddings
 
 ### Frontend Not Loading
-- Ensure static files are in `frontend/` directory
+
+- Ensure the React frontend is running: `cd frontend-react && npm run dev`
 - Check browser console for errors
-- Verify CORS settings if accessing from different origin
+- Verify the backend is running on http://localhost:8000
+- Check Vite proxy configuration in `frontend-react/vite.config.js`
 
 ### Dependency Import Errors
+
 If you encounter `ImportError: cannot import name 'cached_download' from 'huggingface_hub'`:
+
 ```bash
 python -m pip install --upgrade sentence-transformers==2.7.0 "huggingface-hub>=0.20.0"
 ```
+
 This error occurs when `sentence-transformers` version is incompatible with `huggingface-hub`. The fix is to upgrade to compatible versions.
 
 ## License
@@ -328,5 +377,3 @@ This is a proof of concept project for educational/demonstration purposes.
 ## Support
 
 For issues or questions, please refer to the project documentation or create an issue in the repository.
-
-

@@ -19,6 +19,7 @@ echo ""
 echo "Starting backend server..."
 echo "Press Ctrl+C to stop the server."
 echo ""
+cd backend
 python3 run.py
 
 
