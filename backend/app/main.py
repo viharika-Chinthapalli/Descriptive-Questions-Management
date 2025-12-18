@@ -23,16 +23,32 @@ app = FastAPI(
 # Configure CORS
 # Note: When allow_credentials=True, you cannot use allow_origins=["*"]
 # Must specify exact origins
+# Get frontend URL from environment (for production deployment)
+FRONTEND_URL = os.getenv("FRONTEND_URL", "")
+
+# Build CORS origins list
+cors_origins = [
+    "http://localhost:3000",  # React frontend (Vite default)
+    "http://localhost:5173",  # Vite alternative port
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "http://localhost:8000",  # Backend itself (for direct access)
+    "http://127.0.0.1:8000",
+]
+
+# Add production frontend URL if provided
+if FRONTEND_URL:
+    cors_origins.append(FRONTEND_URL)
+    # Also add without trailing slash (if URL has one)
+    if FRONTEND_URL.endswith("/"):
+        cors_origins.append(FRONTEND_URL.rstrip("/"))
+    else:
+        cors_origins.append(FRONTEND_URL + "/")
+    logger.info(f"Added production frontend URL to CORS: {FRONTEND_URL}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # React frontend (Vite default)
-        "http://localhost:5173",  # Vite alternative port
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "http://localhost:8000",  # Backend itself (for direct access)
-        "http://127.0.0.1:8000",
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
