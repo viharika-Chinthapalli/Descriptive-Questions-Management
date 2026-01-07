@@ -1,6 +1,16 @@
 import './QuestionCard.css'
 
 function QuestionCard({ question, similarityScore = null }) {
+  // Validate question object - be lenient, show what we can
+  if (!question) {
+    return <div className="question-card error">Invalid question data</div>;
+  }
+  
+  // Ensure ID is displayed even if it's a fallback (negative)
+  const displayId = question.id !== undefined && question.id !== null 
+    ? String(question.id) 
+    : 'N/A';
+
   const escapeHtml = (text) => {
     if (text == null) return ''
     const div = document.createElement('div')
@@ -30,7 +40,7 @@ function QuestionCard({ question, similarityScore = null }) {
       <div className="question-meta">
         <div className="meta-item">
           <span className="meta-label">ID:</span>{' '}
-          {escapeHtml(String(question.id))}
+          {escapeHtml(displayId)}
         </div>
         <div className="meta-item">
           <span className="meta-label">Subject:</span>{' '}
@@ -70,6 +80,9 @@ function QuestionCard({ question, similarityScore = null }) {
 }
 
 export default QuestionCard
+
+
+
 
 
 

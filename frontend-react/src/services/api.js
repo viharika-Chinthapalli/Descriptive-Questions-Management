@@ -110,7 +110,15 @@ export const questionAPI = {
 
   // Check similarity
   checkSimilarity: async (questionText, excludeId = null) => {
-    const params = { question_text: questionText };
+    // Ensure questionText is properly trimmed and encoded
+    const trimmedText = questionText ? questionText.trim() : '';
+    if (!trimmedText || trimmedText.length < 10) {
+      throw new Error('Question text must be at least 10 characters long.');
+    }
+    
+    const params = { 
+      question_text: trimmedText // axios will automatically encode this
+    };
     if (excludeId !== null && excludeId !== undefined) {
       // Ensure excludeId is converted to integer if provided
       const id =

@@ -107,3 +107,7 @@ Make sure:
 Get pooler URL from: Supabase Dashboard → Settings → Database → Connection Pooling → Session mode
 
 
+
+
+
+

@@ -100,6 +100,34 @@ function AddQuestion() {
         } else {
           errorMessage = `Network error: ${error.message}`
         }
+      } else if (error.response?.status === 400) {
+        // Bad request - duplicate question or validation error
+        const errorData = error.response.data
+        if (errorData?.message) {
+          errorMessage = errorData.message
+          // Add additional context for duplicate questions
+          if (errorData.code === 'DUPLICATE_QUESTION_SAME_COLLEGE') {
+            const collegeName = errorData.college || 'this college'
+            const questionId = errorData.existing_question_id
+            errorMessage = `Question already exists in ${collegeName}.`
+            if (questionId) {
+              errorMessage += ` (Existing Question ID: ${questionId})`
+            }
+            errorMessage += `\n\nTip: Use "Check Similarity" to view the existing question.`
+          } else if (errorData.code === 'SIMILAR_QUESTION') {
+            errorMessage = errorData.message || `Similar question(s) found in ${errorData.college || 'this college'}. Please review existing questions or modify your question text.`
+            if (errorData.similar_count) {
+              errorMessage += ` (${errorData.similar_count} similar question(s) found)`
+            }
+            if (errorData.similar_question_ids && errorData.similar_question_ids.length > 0) {
+              errorMessage += `\n\nSimilar Question IDs: ${errorData.similar_question_ids.join(', ')}`
+            }
+          }
+        } else if (errorData?.detail?.message) {
+          errorMessage = errorData.detail.message
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData
+        }
       } else if (error.response?.status === 503) {
         // Service unavailable - database connection error
         const errorData = error.response.data
@@ -118,8 +146,8 @@ function AddQuestion() {
         if (errorData.errors && Array.isArray(errorData.errors)) {
           const errorDetails = errorData.errors
             .map((e) => {
-              const field = e.field.replace('body.', '').replace('question.', '')
-              return `${field}: ${e.message}`
+              const field = e.field?.replace('body.', '').replace('question.', '') || 'field'
+              return `${field}: ${e.message || e}`
             })
             .join('\n')
           errorMessage = `Validation errors:\n${errorDetails}`
@@ -136,6 +164,8 @@ function AddQuestion() {
           } else if (errorData.detail.message) {
             errorMessage = errorData.detail.message
           }
+        } else if (errorData.message) {
+          errorMessage = errorData.message
         }
       } else if (error.message) {
         errorMessage = error.message
