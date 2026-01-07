@@ -34,11 +34,20 @@ async function createQuestion(questionData) {
     });
   }
   
-  // If exact matches exist in other colleges, synchronize usage_count
+  // If exact matches exist in other colleges, we'll update their counts
+  // after recording usage for the new question
   if (existingExactAll.length > 0) {
-    const newTotalUsage = existingExactAll.length + 1;
-    for (const q of existingExactAll) {
-      await storage.updateQuestion(q.id, { usage_count: newTotalUsage });
+    // Check if this college already has this question
+    const existingInThisCollege = existingExactAll.find(
+      q => q.college === questionData.college
+    );
+    if (existingInThisCollege) {
+      // This should not happen due to earlier check, but just in case
+      throw new DuplicateQuestionError('Question already exists', {
+        code: 'DUPLICATE_QUESTION_SAME_COLLEGE',
+        college: questionData.college,
+        existing_question_id: existingInThisCollege.id
+      });
     }
   } else {
     // Check for similar questions within the same college
@@ -64,24 +73,145 @@ async function createQuestion(questionData) {
     }
   }
   
-  // Set usage_count
-  const usageCount = existingExactAll.length > 0 ? existingExactAll.length + 1 : 1;
-  
-  // Create question
+  // Create question with initial usage_count of 0 (will be updated to 1 when usage is recorded)
   const newQuestion = await storage.addQuestion({
     question_text: questionData.question_text,
     question_hash: questionHash,
     subject: questionData.subject,
-    topic: questionData.topic,
+    unit_name: questionData.unit_name || questionData.topic || null, // Support both unit_name and topic for backward compatibility
+    topic: questionData.topic || questionData.unit_name || null, // Keep topic for backward compatibility
+    academic_year: questionData.academic_year || null,
     difficulty_level: questionData.difficulty_level,
     marks: questionData.marks,
     exam_type: questionData.exam_type,
     college: questionData.college,
-    usage_count: usageCount,
+    usage_count: 0, // Will be updated to 1 when usage is recorded
     status: 'Active'
   });
   
-  return newQuestion;
+  // Automatically record usage when question is added
+  // This will set the question's usage_count to 1 (used once in its specific college)
+  // The total usage count across all colleges is calculated in getUsageByQuestionText
+  // Usage is recorded with the college from the question data
+  let usageRecord = null;
+  
+  // Verify question was saved before creating usage record
+  const verifyQuestion = await storage.getQuestionById(newQuestion.id);
+  if (!verifyQuestion) {
+    console.error('[createQuestion] CRITICAL: Question not found after creation:', newQuestion.id);
+    throw new Error('Question was not saved properly');
+  }
+  
+  try {
+    console.log('[createQuestion] Recording usage for new question:', {
+      question_id: newQuestion.id,
+      college: questionData.college,
+      exam_type: questionData.exam_type,
+      academic_year: questionData.academic_year
+    });
+    
+    usageRecord = await storage.addUsageRecord({
+      question_id: newQuestion.id,
+      exam_name: null, // Not used when question is added
+      exam_type: questionData.exam_type || null,
+      academic_year: questionData.academic_year || null, // Use academic_year from question
+      college: questionData.college
+    });
+    
+    console.log('[createQuestion] Usage record created successfully:', {
+      id: usageRecord.id,
+      question_id: usageRecord.question_id,
+      college: usageRecord.college,
+      academic_year: usageRecord.academic_year
+    });
+    
+    // Verify the usage record was actually created and saved
+    const verifyData = await storage.readData();
+    const verifyUsage = verifyData.usageHistory.find(
+      u => u.question_id === newQuestion.id && u.college === questionData.college
+    );
+    if (!verifyUsage) {
+      throw new Error('Usage record was not saved to data.json');
+    }
+    console.log('[createQuestion] Verified usage record exists in data:', verifyUsage.id);
+  } catch (error) {
+    console.error('[createQuestion] ERROR: Failed to create usage record:', error);
+    console.error('[createQuestion] Error details:', {
+      message: error.message,
+      stack: error.stack,
+      question_id: newQuestion.id
+    });
+    
+    // Fallback: Create usage record directly
+    try {
+      console.log('[createQuestion] Attempting fallback: creating usage record directly');
+      const data = await storage.readData();
+      
+      // Verify question exists
+      const question = data.questions.find(q => q.id === newQuestion.id);
+      if (!question) {
+        throw new Error(`Question ${newQuestion.id} not found in data`);
+      }
+      
+      // Check if usage record already exists
+      const existingUsage = data.usageHistory.find(
+        u => u.question_id === newQuestion.id && u.college === questionData.college
+      );
+      
+      if (!existingUsage) {
+        const fallbackUsage = {
+          id: data.nextUsageId++,
+          question_id: newQuestion.id,
+          exam_name: null,
+          exam_type: questionData.exam_type || null,
+          academic_year: questionData.academic_year || null,
+          college: questionData.college,
+          date_used: newQuestion.created_date || new Date().toISOString()
+        };
+        
+        data.usageHistory.push(fallbackUsage);
+        
+        // Update question usage_count to 1 (used once in its specific college)
+        question.usage_count = 1;
+        question.last_used_date = fallbackUsage.date_used;
+        
+        await storage.writeData(data);
+        
+        // Verify it was saved
+        const verifyData = await storage.readData();
+        const verifyUsage = verifyData.usageHistory.find(
+          u => u.id === fallbackUsage.id
+        );
+        if (!verifyUsage) {
+          throw new Error('Fallback usage record was not saved');
+        }
+        
+        console.log('[createQuestion] Fallback: Usage record created and verified:', fallbackUsage.id);
+        usageRecord = fallbackUsage;
+      } else {
+        console.log('[createQuestion] Fallback: Usage record already exists');
+        usageRecord = existingUsage;
+      }
+    } catch (fallbackError) {
+      console.error('[createQuestion] CRITICAL: Fallback also failed:', fallbackError);
+      console.error('[createQuestion] Fallback error:', fallbackError.message);
+      console.error('[createQuestion] Fallback stack:', fallbackError.stack);
+      // Question is created, but usage record failed - will be auto-created on search via getUsageByQuestionText
+      // Don't throw - let the question be created, usage will be auto-created when searched
+    }
+  }
+  
+  // Reload the question to get updated usage_count
+  const updatedQuestion = await storage.getQuestionById(newQuestion.id);
+  
+  console.log('[createQuestion] Final question:', {
+    id: updatedQuestion.id,
+    usage_count: updatedQuestion.usage_count,
+    college: updatedQuestion.college,
+    hasUsageRecord: usageRecord !== null
+  });
+  
+  return updatedQuestion;
 }
 
 /**

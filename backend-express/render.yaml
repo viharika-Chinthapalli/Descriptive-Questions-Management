@@ -1,0 +1,21 @@
+# Render Blueprint Configuration
+# This file can be used to define your service infrastructure
+# Optional: You can also configure everything through the Render dashboard
+
+services:
+  - type: web
+    name: question-bank-backend
+    env: node
+    region: oregon  # Options: oregon, frankfurt, singapore, mumbai, tokyo
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8000
+      # Add FRONTEND_URL after frontend is deployed
+      # - key: FRONTEND_URL
+      #   value: https://your-app.vercel.app
+

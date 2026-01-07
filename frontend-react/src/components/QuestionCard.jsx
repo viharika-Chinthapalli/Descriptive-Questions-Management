@@ -47,8 +47,12 @@ function QuestionCard({ question, similarityScore = null }) {
           {escapeHtml(question.subject)}
         </div>
         <div className="meta-item">
-          <span className="meta-label">Topic:</span>{' '}
-          {escapeHtml(question.topic || 'N/A')}
+          <span className="meta-label">Unit Name:</span>{' '}
+          {escapeHtml(question.unit_name || question.topic || 'N/A')}
+        </div>
+        <div className="meta-item">
+          <span className="meta-label">Academic Year:</span>{' '}
+          {escapeHtml(question.academic_year || 'N/A')}
         </div>
         <div className="meta-item">
           <span className="meta-label">Difficulty:</span>{' '}

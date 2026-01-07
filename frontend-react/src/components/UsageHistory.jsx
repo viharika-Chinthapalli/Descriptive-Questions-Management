@@ -7,13 +7,6 @@ function UsageHistory() {
   const [usageData, setUsageData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [usageForm, setUsageForm] = useState({
-    exam_name: "",
-    exam_type: "",
-    academic_year: "",
-    college: "",
-  });
-  const [recording, setRecording] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,6 +22,11 @@ function UsageHistory() {
       const data = await questionAPI.getUsageByQuestionText(
         questionText.trim()
       );
+      console.log('[UsageHistory] Received data:', {
+        usage_count: data.usage_count,
+        usage_history_length: data.usage_history?.length || 0,
+        matching_questions_count: data.matching_questions_count
+      });
       setUsageData(data);
     } catch (error) {
       console.error("Error fetching usage data:", error);
@@ -94,96 +92,12 @@ function UsageHistory() {
     }
   };
 
-  const handleUsageChange = (e) => {
-    const { name, value } = e.target;
-    setUsageForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleRecordUsage = async (e) => {
-    e.preventDefault();
-    if (!questionText.trim() || questionText.trim().length < 10) {
-      alert("Please enter a valid question text before recording usage.");
-      return;
-    }
-
-    if (
-      !usageForm.exam_name.trim() ||
-      !usageForm.exam_type.trim() ||
-      !usageForm.academic_year.trim() ||
-      !usageForm.college.trim()
-    ) {
-      alert(
-        "Please fill all usage fields (Exam, Type, Academic Year, College)."
-      );
-      return;
-    }
-
-    setRecording(true);
-    try {
-      await questionAPI.recordUsageByQuestionText(questionText.trim(), {
-        exam_name: usageForm.exam_name.trim(),
-        exam_type: usageForm.exam_type.trim(),
-        academic_year: usageForm.academic_year.trim(),
-        college: usageForm.college.trim(),
-      });
-
-      // Clear form
-      setUsageForm({
-        exam_name: "",
-        exam_type: "",
-        academic_year: "",
-        college: "",
-      });
-
-      // Refresh usage data after recording
-      const data = await questionAPI.getUsageByQuestionText(
-        questionText.trim()
-      );
-      setUsageData(data);
-      setSearched(true);
-      alert("Usage recorded successfully.");
-    } catch (error) {
-      console.error("Error recording usage:", error);
-      if (error.response?.status === 404) {
-        const errorData = error.response.data;
-        const errorMessage =
-          errorData?.detail?.message ||
-          (typeof errorData?.detail === "string"
-            ? errorData.detail
-            : "Question not found for the given text. Please check the question.");
-        alert(errorMessage);
-      } else if (error.response?.status === 422) {
-        const errorData = error.response.data;
-        const backendMessage =
-          errorData?.errors?.[0]?.message ||
-          errorData?.detail ||
-          "Validation error. Please check your input.";
-        const helpText = errorData?.help ? `\n\n${errorData.help}` : "";
-        alert(backendMessage + helpText);
-      } else if (error.response?.status === 503) {
-        const errorData = error.response.data;
-        alert(
-          errorData?.detail?.message ||
-            "Database connection error. Please check Supabase configuration."
-        );
-      } else if (!error.response) {
-        alert(
-          "Cannot connect to server. Please make sure the backend is running."
-        );
-      } else {
-        alert("Failed to record usage. Please try again.");
-      }
-    } finally {
-      setRecording(false);
-    }
-  };
-
   return (
     <div className="usage-history">
       <h2>Question Usage History</h2>
+      <p style={{ marginBottom: "20px", color: "#666", fontSize: "14px" }}>
+        Usage is automatically tracked when questions are added. Search for a question to view its usage count and history.
+      </p>
 
       {/* Search usage history by question text */}
       <form onSubmit={handleSubmit} className="usage-form">
@@ -208,7 +122,7 @@ function UsageHistory() {
           />
         </div>
         <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? "Loading..." : "Get Usage Count & History"}
+          {loading ? "Loading..." : "Search Usage History"}
         </button>
       </form>
 
@@ -253,7 +167,7 @@ function UsageHistory() {
               </div>
 
               {usageData.usage_history &&
-                usageData.usage_history.length > 0 && (
+                usageData.usage_history.length > 0 ? (
                   <div>
                     <h4>Usage History</h4>
                     <div className="usage-list">
@@ -268,17 +182,14 @@ function UsageHistory() {
                             </span>
                           </div>
                           <div className="usage-field">
-                            <strong>Exam Name:</strong> {usage.exam_name}
-                          </div>
-                          <div className="usage-field">
-                            <strong>Exam Type:</strong> {usage.exam_type}
+                            <strong>Exam Type:</strong> {usage.exam_type || "N/A"}
                           </div>
                           <div className="usage-field">
                             <strong>Academic Year:</strong>{" "}
-                            {usage.academic_year}
+                            {usage.academic_year || "N/A"}
                           </div>
                           <div className="usage-field">
-                            <strong>College:</strong> {usage.college}
+                            <strong>College:</strong> {usage.college || "N/A"}
                           </div>
                           <div className="usage-field">
                             <strong>Date Used:</strong>{" "}
@@ -299,79 +210,18 @@ function UsageHistory() {
                       ))}
                     </div>
                   </div>
-                )}
+                ) : usageData.usage_count > 0 ? (
+                  <div style={{ marginTop: "20px", padding: "15px", backgroundColor: "#fff3cd", borderRadius: "5px", border: "1px solid #ffc107" }}>
+                    <p style={{ margin: 0, color: "#856404" }}>
+                      <strong>Note:</strong> Usage count is {usageData.usage_count}, but detailed history is being loaded. 
+                      Please refresh or search again to see the full history.
+                    </p>
+                  </div>
+                ) : null}
             </>
           )}
         </div>
       )}
-
-      {/* Record new usage for a question */}
-      <div className="usage-record-section">
-        <h3>Record Question Usage</h3>
-        <form onSubmit={handleRecordUsage} className="usage-form record-form">
-          <div className="form-group">
-            <label htmlFor="exam_name">
-              Exam Name <span className="required">*</span>
-            </label>
-            <input
-              type="text"
-              id="exam_name"
-              name="exam_name"
-              value={usageForm.exam_name}
-              onChange={handleUsageChange}
-              placeholder="e.g., Final Exam 2024"
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="exam_type">
-              Exam Type <span className="required">*</span>
-            </label>
-            <input
-              type="text"
-              id="exam_type"
-              name="exam_type"
-              value={usageForm.exam_type}
-              onChange={handleUsageChange}
-              placeholder="e.g., Mid, End-Sem, Practical"
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="academic_year">
-              Academic Year <span className="required">*</span>
-            </label>
-            <input
-              type="text"
-              id="academic_year"
-              name="academic_year"
-              value={usageForm.academic_year}
-              onChange={handleUsageChange}
-              placeholder="e.g., 2023-24"
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="college">
-              College <span className="required">*</span>
-            </label>
-            <input
-              type="text"
-              id="college"
-              name="college"
-              value={usageForm.college}
-              onChange={handleUsageChange}
-              placeholder="e.g., ABC University"
-            />
-          </div>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={recording}
-          >
-            {recording ? "Recording..." : "Record Usage"}
-          </button>
-        </form>
-      </div>
-
-      
     </div>
   );
 }

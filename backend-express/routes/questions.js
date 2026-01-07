@@ -20,6 +20,7 @@ router.post("/questions", async (req, res, next) => {
       marks,
       exam_type,
       college,
+      academic_year,
     } = req.body;
 
     if (!question_text || question_text.trim().length < 10) {
@@ -35,7 +36,14 @@ router.post("/questions", async (req, res, next) => {
       });
     }
 
-    if (!subject || !difficulty_level || !marks || !exam_type || !college) {
+    if (
+      !subject ||
+      !difficulty_level ||
+      !marks ||
+      !exam_type ||
+      !college ||
+      !academic_year
+    ) {
       return res.status(422).json({
         message: "Missing required fields",
         errors: [
@@ -44,6 +52,7 @@ router.post("/questions", async (req, res, next) => {
           "marks",
           "exam_type",
           "college",
+          "academic_year",
         ].filter((f) => !req.body[f]),
       });
     }
@@ -289,7 +298,9 @@ router.get("/questions/check-similarity", async (req, res, next) => {
               question_text: q.question_text,
               question_hash: q.question_hash || null,
               subject: q.subject || "Unknown",
-              topic: q.topic || null,
+              unit_name: q.unit_name || q.topic || null, // Support both unit_name and topic
+              topic: q.topic || q.unit_name || null, // Keep topic for backward compatibility
+              academic_year: q.academic_year || null,
               difficulty_level: q.difficulty_level || "Medium",
               marks: q.marks || 0,
               exam_type: q.exam_type || "Unknown",

@@ -6,11 +6,12 @@ function AddQuestion() {
   const [formData, setFormData] = useState({
     question_text: '',
     subject: '',
-    topic: '',
+    unit_name: '',
     difficulty_level: '',
     marks: '',
     exam_type: '',
     college: '',
+    academic_year: '',
   })
   const [result, setResult] = useState({ type: '', message: '' })
   const [loading, setLoading] = useState(false)
@@ -43,6 +44,9 @@ function AddQuestion() {
     if (!formData.college.trim()) {
       return 'College is required.'
     }
+    if (!formData.academic_year.trim()) {
+      return 'Academic Year is required.'
+    }
     return null
   }
 
@@ -61,16 +65,20 @@ function AddQuestion() {
       const questionData = {
         question_text: formData.question_text.trim(),
         subject: formData.subject.trim(),
-        topic: formData.topic.trim() || null,
+        unit_name: formData.unit_name.trim() || null,
         difficulty_level: formData.difficulty_level,
         marks: parseInt(formData.marks),
         exam_type: formData.exam_type,
         college: formData.college.trim(),
+        academic_year: formData.academic_year.trim() || null,
       }
 
-      // Remove null topic
-      if (!questionData.topic) {
-        delete questionData.topic
+      // Remove null fields
+      if (!questionData.unit_name) {
+        delete questionData.unit_name
+      }
+      if (!questionData.academic_year) {
+        delete questionData.academic_year
       }
 
       const question = await questionAPI.create(questionData)
@@ -82,11 +90,12 @@ function AddQuestion() {
       setFormData({
         question_text: '',
         subject: '',
-        topic: '',
+        unit_name: '',
         difficulty_level: '',
         marks: '',
         exam_type: '',
         college: '',
+        academic_year: '',
       })
     } catch (error) {
       let errorMessage = 'Failed to add question'
@@ -209,18 +218,18 @@ function AddQuestion() {
               value={formData.subject}
               onChange={handleChange}
               required
-              placeholder="e.g., Computer Science"
+              placeholder="e.g., Web Development"
             />
           </div>
           <div className="form-group">
-            <label htmlFor="topic">Topic</label>
+            <label htmlFor="unit_name">Unit Name</label>
             <input
               type="text"
-              id="topic"
-              name="topic"
-              value={formData.topic}
+              id="unit_name"
+              name="unit_name"
+              value={formData.unit_name}
               onChange={handleChange}
-              placeholder="e.g., Programming Languages"
+              placeholder="e.g., UNIT_Bootstrap_Grid_System"
             />
           </div>
         </div>
@@ -287,6 +296,23 @@ function AddQuestion() {
               onChange={handleChange}
               required
               placeholder="e.g., ABC University"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="academic_year">
+              Academic Year <span className="required">*</span>
+            </label>
+            <input
+              type="text"
+              id="academic_year"
+              name="academic_year"
+              value={formData.academic_year}
+              onChange={handleChange}
+              required
+              placeholder="e.g., 2025"
             />
           </div>
         </div>
