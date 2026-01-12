@@ -38,3 +38,4 @@ primary_region = "iad"  # Change to your preferred region (iad=US East, lhr=Lond
   cpu_kind = "shared"
   cpus = 1
 
+
